@@ -55,6 +55,14 @@ npm run catalog:dry-run
 
 The script writes JSON/CSV previews to `catalog-preview/` and prints a report with product totals, variant totals, missing images/prices/SKUs, duplicates, and failed pages. It is intentionally dry-run only.
 
+After reviewing the preview and approving an import, run:
+
+```bash
+npm run catalog:import:approved
+```
+
+This imports the public sitemap products into Supabase through the protected admin RPCs. The source exposes stock status but not exact quantities, so available products/shades are imported with a default editable stock quantity of `20`.
+
 ## Deployment
 
 1. Push this folder to GitHub.

@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "catalog:dry-run": "node scripts/catalog-dry-run.mjs",
+    "catalog:import:approved": "node scripts/catalog-import-approved.mjs --apply",
     "build": "next build",
     "start": "next start"
   },
