@@ -1,0 +1,26 @@
+-- Production schema is managed through Supabase migrations.
+-- This file documents the backend objects applied to the connected project.
+--
+-- Tables:
+--   categories, products, product_variants, orders, order_items,
+--   admin_users, admin_settings
+--
+-- Security:
+--   RLS is enabled and forced on every app table.
+--   anon/authenticated can SELECT active categories/products only.
+--   customers create orders through public.create_order(...), which validates
+--   products, selected variants/shades, prices, stock, and writes order_items
+--   in one transaction.
+--   admin dashboard APIs call protected RPCs with server-side ADMIN_DB_SECRET.
+--
+-- Storage:
+--   bucket: product-images
+--   public SELECT policy only; uploads require SUPABASE_SERVICE_ROLE_KEY.
+--
+-- Applied migrations in Supabase project dqcfvmpmlsldzjrdwfgx:
+--   production_ecommerce_backend
+--   fix_admin_secret_digest_schema
+--   upsert_products_by_legacy_id
+--   tighten_rls_and_advisor_warnings
+--   explicit_function_execute_grants
+--   add_product_variants_and_variant_orders

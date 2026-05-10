@@ -1,0 +1,19 @@
+{
+  "name": "flormar-tn",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "catalog:dry-run": "node scripts/catalog-dry-run.mjs",
+    "build": "next build",
+    "start": "next start"
+  },
+  "overrides": {
+    "postcss": "8.5.14"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.105.4",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  }
+}
