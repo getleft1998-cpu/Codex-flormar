@@ -11,8 +11,58 @@ const SOURCE_CATEGORY_HINTS = {
   '67b6fe917250df1e0e184359': 'face',
   '67b6fe917250df1e0e18435c': 'eyes',
   '67b6fe917250df1e0e184361': 'lips',
+  '67b71e687250df1e0e1886a8': 'accessories',
   '67b8cbe4ab4c7904d0294d9f': 'skincare',
 }
+
+// The current flormar.tn sitemap only exposes a subset of products. These
+// URLs were resolved from public rendered category pages, then each product
+// is still imported from its public productData page.
+const CATEGORY_VISIBLE_PRODUCT_URLS = [
+  { category: 'face', name: 'stay perfect concealer', url: 'https://flormar.tn/product/stay-perfect-concealer-1' },
+  { category: 'face', name: 'Blush-On', url: 'https://flormar.tn/product/blush-on' },
+  { category: 'face', name: 'Wet&Dry Compact Powder', url: 'https://flormar.tn/product/wet-dry-compact-powder' },
+  { category: 'face', name: 'Setn Go Fixing Powder Compact Powder', url: 'https://flormar.tn/product/setn-go-fixing-powder-compact-powder' },
+  { category: 'face', name: 'Puffy Liquid Blush', url: 'https://flormar.tn/product/puffy-liquid-blush' },
+  { category: 'face', name: 'Puffy Liquid Contour', url: 'https://flormar.tn/product/puffy-liquid-contour' },
+  { category: 'face', name: 'Contour Stick', url: 'https://flormar.tn/product/contour-stick' },
+  { category: 'face', name: 'Blossom Stick Blush', url: 'https://flormar.tn/product/blossom-stick-blush' },
+  { category: 'face', name: 'Pack Flormar', url: 'https://flormar.tn/product/pack-flormar' },
+  { category: 'face', name: 'Lip & Cheek Tint', url: 'https://flormar.tn/product/lip-cheek-tint' },
+  { category: 'eyes', name: 'Volume Up Mascara', url: 'https://flormar.tn/product/volume-up-mascara' },
+  { category: 'eyes', name: 'Vinyl Waterproof Dipliner Black', url: 'https://flormar.tn/product/vinyl-waterproof-dipliner-black' },
+  { category: 'eyes', name: 'Tinted Brow Gel', url: 'https://flormar.tn/product/tinted-brow-gel' },
+  { category: 'eyes', name: 'Open Up Hd Mascara', url: 'https://flormar.tn/product/open-up-hd-mascara' },
+  { category: 'eyes', name: 'Open Up Waterproof Mascara', url: 'https://flormar.tn/product/open-up-waterproof-mascara' },
+  { category: 'eyes', name: 'Hero Volume & Curl Mascara waterproof', url: 'https://flormar.tn/product/hero-volume-curl-mascara-waterproof' },
+  { category: 'eyes', name: 'Eyeshadow Palette', url: 'https://flormar.tn/product/eyeshadow-palette' },
+  { category: 'eyes', name: 'Eyeliner Pen Black', url: 'https://flormar.tn/product/eyeliner-pen-black' },
+  { category: 'eyes', name: 'Eyebrow Pencil', url: 'https://flormar.tn/product/eyebrow-pencil' },
+  { category: 'eyes', name: 'Color Eyeshadow Palette', url: 'https://flormar.tn/product/color-eyeshadow-palette' },
+  { category: 'lips', name: 'Water Lip Stain', url: 'https://flormar.tn/product/water-lip-stain' },
+  { category: 'lips', name: 'Hd Weightless Matte Lipstick – New', url: 'https://flormar.tn/product/hd-weightless-matte-lipstick-new' },
+  { category: 'lips', name: 'Lift Up Caring Lip Plumper', url: 'https://flormar.tn/product/lift-up-caring-lip-plumper' },
+  { category: 'lips', name: 'Sheer Up Lipstick', url: 'https://flormar.tn/product/sheer-up-lipstick' },
+  { category: 'lips', name: 'Lip Balm Strawberry', url: 'https://flormar.tn/product/lip-balm-strawberry' },
+  { category: 'lips', name: 'Lightweight Lip Powder', url: 'https://flormar.tn/product/lightweight-lip-powder' },
+  { category: 'lips', name: 'Duoglam Lipstick', url: 'https://flormar.tn/product/duoglam-lipstick' },
+  { category: 'lips', name: 'Creamy Stylo Lipstick', url: 'https://flormar.tn/product/creamy-stylo-lipstick' },
+  { category: 'lips', name: 'Waterproof Lipliner', url: 'https://flormar.tn/product/waterproof-lipliner-1' },
+  { category: 'lips', name: 'Dewy Lip Glaze', url: 'https://flormar.tn/product/dewy-lip-glaze-1' },
+  { category: 'accessories', name: 'Shading Brush', url: 'https://flormar.tn/product/shading-brush' },
+  { category: 'accessories', name: 'Powder Brush', url: 'https://flormar.tn/product/powder-brush' },
+  { category: 'accessories', name: 'Flared Cut Blush Brush', url: 'https://flormar.tn/product/flared-cut-blush-brush' },
+  { category: 'accessories', name: 'Eyeshadow Brush', url: 'https://flormar.tn/product/eyeshadow-brush' },
+  { category: 'accessories', name: 'Contour Brush', url: 'https://flormar.tn/product/contour-brush' },
+  { category: 'accessories', name: 'Concealer Brush', url: 'https://flormar.tn/product/concealer-brush' },
+  { category: 'accessories', name: 'Blusher Brush', url: 'https://flormar.tn/product/blusher-brush' },
+  { category: 'accessories', name: 'Blending Brush', url: 'https://flormar.tn/product/blending-brush' },
+  { category: 'skincare', name: 'Vitamin Bomb Serum&Primer', url: 'https://flormar.tn/product/vitamin-bomb-serum-primer' },
+  { category: 'skincare', name: 'pore minimizer', url: 'https://flormar.tn/product/pore-minimizer' },
+  { category: 'skincare', name: 'Tinted Moisturizer Spf50', url: 'https://flormar.tn/product/tinted-moisturizer-spf50' },
+  { category: 'skincare', name: 'Illuminating Makeup Primer Plus+', url: 'https://flormar.tn/product/illuminating-makeup-primer-plus' },
+  { category: 'skincare', name: 'Illuminating Primer Make-Up Base', url: 'https://flormar.tn/product/illuminating-primer-make-up-base' },
+]
 
 const CATEGORY_RULES = [
   ['accessories', /\b(brush|pinceau|sponge|mirror|accessor|ksswrt|bag|trousse)\b/i],
@@ -343,7 +393,9 @@ async function main() {
 
   const maxProducts = Number(argValue('--max-products', '0'))
   const sitemapXml = await fetchText(SITEMAP_URL)
-  const productUrls = [...sitemapXml.matchAll(/<loc>(https:\/\/flormar\.tn\/product\/[^<]+)<\/loc>/g)].map(match => match[1])
+  const sitemapProductUrls = [...sitemapXml.matchAll(/<loc>(https:\/\/flormar\.tn\/product\/[^<]+)<\/loc>/g)].map(match => match[1])
+  const visibleCategoryProductUrls = CATEGORY_VISIBLE_PRODUCT_URLS.map(product => product.url)
+  const productUrls = [...new Set([...sitemapProductUrls, ...visibleCategoryProductUrls])]
   const categoryUrls = [...sitemapXml.matchAll(/<loc>(https:\/\/flormar\.tn\/category\/[^<]+)<\/loc>/g)].map(match => match[1])
   const urls = maxProducts > 0 ? productUrls.slice(0, maxProducts) : productUrls
 
@@ -365,9 +417,12 @@ async function main() {
 
   const report = makeReport(products, failedPages, {
     sitemap_url: SITEMAP_URL,
-    product_urls_found_in_sitemap: productUrls.length,
+    product_urls_found_in_sitemap: sitemapProductUrls.length,
+    product_urls_found_in_rendered_categories: visibleCategoryProductUrls.length,
+    unique_product_urls_crawled: urls.length,
     category_urls_found_in_sitemap: categoryUrls.length,
     category_urls: categoryUrls,
+    rendered_category_products: CATEGORY_VISIBLE_PRODUCT_URLS,
   })
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
