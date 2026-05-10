@@ -133,11 +133,15 @@ function numberOrNull(value) {
 function bestImage(images = []) {
   const first = images?.[0]
   if (!first) return ''
-  return first.lg || first.md || first.sm || ''
+  return highQualityImage(first.lg || first.md || first.sm || '')
+}
+
+function highQualityImage(url = '') {
+  return String(url || '').replace(/_sm(\.(?:webp|jpg|jpeg|png))(?:\?.*)?$/i, '_lg$1')
 }
 
 function imageFromVariant(variant) {
-  return variant?.image || ''
+  return highQualityImage(variant?.image || '')
 }
 
 function stockStatus(stock) {
