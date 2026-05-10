@@ -61,7 +61,7 @@ After reviewing the preview and approving an import, run:
 npm run catalog:import:approved
 ```
 
-This imports the public sitemap products into Supabase through the protected admin RPCs. The source exposes stock status but not exact quantities, so available products/shades are imported with a default editable stock quantity of `20`.
+This imports the public sitemap products into Supabase through the protected admin RPCs. The source exposes stock status but not exact quantities, so every imported product/shade is kept active and receives a default editable stock quantity of `20`.
 
 ## Deployment
 

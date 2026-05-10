@@ -67,8 +67,37 @@ function getCategoryMeta(category, slug, lang) {
   }
 }
 
+function getDescription(product, lang) {
+  if (!product) return ''
+  if (lang === 'ar') return product.descriptionAr || product.description_ar || product.descriptionFr || product.description_fr || ''
+  return product.descriptionFr || product.description_fr || product.descriptionAr || product.description_ar || ''
+}
+
 function getCartItemKey(item) {
   return item.cartKey || `${item.id || item.productId}:${item.variantId || 'base'}`
+}
+
+function addProductToCart(setCart, product, selectedVariant) {
+  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : product.price
+  const imageSrc = selectedVariant?.image || product.image
+  const cartKey = `${product.id}:${selectedVariant?.id || 'base'}`
+  const item = {
+    ...product,
+    cartKey,
+    variantId: selectedVariant?.id || null,
+    shadeName: selectedVariant?.shadeName || '',
+    sku: selectedVariant?.sku || product.sku || '',
+    colorHex: selectedVariant?.colorHex || '',
+    image: imageSrc,
+    price: finalPrice,
+    qty: 1,
+  }
+
+  setCart(prev => {
+    const existing = prev.find(cartItem => getCartItemKey(cartItem) === cartKey)
+    if (existing) return prev.map(cartItem => getCartItemKey(cartItem) === cartKey ? { ...cartItem, qty: cartItem.qty + 1 } : cartItem)
+    return [...prev, item]
+  })
 }
 
 // ─── CART DRAWER ──────────────────────────────────────────────────────────────
@@ -188,7 +217,7 @@ function Header({ lang, setLang, t, cart, setCart, activeCat, navigate, setPage,
 }
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
-function ProductCard({ product, t, lang, setCart }) {
+function ProductCard({ product, t, lang, setCart, onView }) {
   const [added, setAdded] = useState(false)
   const [selectedVariantId, setSelectedVariantId] = useState('')
   const [shadeError, setShadeError] = useState('')
@@ -207,23 +236,7 @@ function ProductCard({ product, t, lang, setCart }) {
       return
     }
     if (!canAddSelected) return
-    const cartKey = `${product.id}:${selectedVariant?.id || 'base'}`
-    const item = {
-      ...product,
-      cartKey,
-      variantId: selectedVariant?.id || null,
-      shadeName: selectedVariant?.shadeName || '',
-      sku: selectedVariant?.sku || product.sku || '',
-      colorHex: selectedVariant?.colorHex || '',
-      image: imageSrc,
-      price: finalPrice,
-      qty: 1,
-    }
-    setCart(prev => {
-      const ex = prev.find(i => getCartItemKey(i) === cartKey)
-      if (ex) return prev.map(i => getCartItemKey(i) === cartKey ? { ...i, qty: i.qty + 1 } : i)
-      return [...prev, item]
-    })
+    addProductToCart(setCart, product, selectedVariant)
     setShadeError('')
     setAdded(true)
     setTimeout(() => setAdded(false), 1400)
@@ -233,7 +246,7 @@ function ProductCard({ product, t, lang, setCart }) {
     <div style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 14px rgba(200,37,78,0.05)', transition: 'transform 0.2s,box-shadow 0.2s', opacity: productHasStock ? 1 : 0.58 }}
       onMouseEnter={e => { if (!productHasStock) return; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(200,37,78,0.13)' }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 14px rgba(200,37,78,0.05)' }}>
-      <div style={{ position: 'relative', paddingTop: '100%', background: '#f8f0f3', overflow: 'hidden' }}>
+      <div onClick={() => onView?.(product)} style={{ position: 'relative', paddingTop: '100%', background: '#f8f0f3', overflow: 'hidden', cursor: 'pointer' }}>
         <img src={imageSrc} alt={getName(product, lang)}
           onError={e => { e.currentTarget.style.display = 'none' }}
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -249,7 +262,7 @@ function ProductCard({ product, t, lang, setCart }) {
         )}
       </div>
       <div style={{ padding: '13px 14px', fontFamily: "'Montserrat',sans-serif" }}>
-        <p style={{ margin: '0 0 5px', fontSize: 12, color: '#333', fontWeight: 600, lineHeight: 1.4, minHeight: 32, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
+        <p onClick={() => onView?.(product)} style={{ margin: '0 0 5px', fontSize: 12, color: '#333', fontWeight: 600, lineHeight: 1.4, minHeight: 32, direction: lang === 'ar' ? 'rtl' : 'ltr', cursor: 'pointer' }}>
           {getName(product, lang)}
         </p>
         <p style={{ margin: '0 0 11px', fontSize: 15, color: '#c8254e', fontWeight: 700, fontFamily: "'Cormorant Garamond',serif" }}>
@@ -274,6 +287,9 @@ function ProductCard({ product, t, lang, setCart }) {
             {shadeError && <p style={{ color: '#c8254e', fontSize: 10, lineHeight: 1.4, margin: '6px 0 0' }}>{shadeError}</p>}
           </div>
         )}
+        <button onClick={() => onView?.(product)} style={{ width: '100%', background: '#fff', color: '#c8254e', border: '1px solid #f0d5de', borderRadius: 6, padding: '8px', fontSize: 10, fontWeight: 800, cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", letterSpacing: 0.5, marginBottom: 7 }}>
+          {t.viewDetails}
+        </button>
         <button onClick={add} disabled={!productHasStock || (selectedVariant && !selectedVariant.inStock)} style={{ width: '100%', background: (!productHasStock || (selectedVariant && !selectedVariant.inStock)) ? '#ddd' : (added ? '#2ecc71' : '#c8254e'), color: '#fff', border: 'none', borderRadius: 6, padding: '9px', fontSize: 11, fontWeight: 700, cursor: productHasStock ? 'pointer' : 'not-allowed', fontFamily: "'Montserrat',sans-serif", transition: 'background 0.3s' }}>
           {!inStock ? t.outOfStock : (added ? '✓ ' + (lang === 'ar' ? 'أضيف' : 'Ajouté') : t.addToCart)}
         </button>
@@ -283,6 +299,150 @@ function ProductCard({ product, t, lang, setCart }) {
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
+// PRODUCT DETAIL
+function ProductDetailPage({ product, lang, t, navigate, setCart, isMobile, categories }) {
+  const safeProduct = product || {}
+  const variants = (safeProduct.variants || []).filter(variant => variant.isActive !== false)
+  const hasVariants = variants.length > 0
+  const category = categories.find(c => c.slug === safeProduct.category)
+  const gallery = Array.from(new Set([
+    safeProduct.image,
+    safeProduct.imageUrl,
+    ...variants.map(variant => variant.image || variant.imageUrl),
+  ].filter(Boolean)))
+
+  const [selectedVariantId, setSelectedVariantId] = useState('')
+  const [shadeError, setShadeError] = useState('')
+  const [added, setAdded] = useState(false)
+  const [activeImage, setActiveImage] = useState(gallery[0] || '')
+
+  const selectedVariant = variants.find(variant => String(variant.id) === String(selectedVariantId))
+  const productHasStock = safeProduct.inStock !== false && Number(safeProduct.stockQuantity || 0) > 0
+  const canAddSelected = hasVariants ? Boolean(selectedVariant && selectedVariant.inStock) : productHasStock
+  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : safeProduct.price
+  const discounted = selectedVariant && selectedVariant.price !== null && Number(selectedVariant.price) < Number(safeProduct.price)
+  const description = getDescription(safeProduct, lang)
+  const reference = selectedVariant?.sku || safeProduct.sku || ''
+
+  useEffect(() => {
+    setSelectedVariantId('')
+    setShadeError('')
+    setAdded(false)
+    setActiveImage(gallery[0] || '')
+  }, [safeProduct.id])
+
+  useEffect(() => {
+    if (selectedVariant?.image) setActiveImage(selectedVariant.image)
+  }, [selectedVariantId])
+
+  const add = () => {
+    if (hasVariants && !selectedVariant) {
+      setShadeError(t.shadeRequired)
+      return
+    }
+    if (!canAddSelected) return
+    addProductToCart(setCart, safeProduct, selectedVariant)
+    setShadeError('')
+    setAdded(true)
+    setTimeout(() => setAdded(false), 1400)
+  }
+
+  if (!product) {
+    return (
+      <div style={{ maxWidth: 900, margin: isMobile ? '124px auto 50px' : '136px auto 60px', padding: '0 20px', fontFamily: "'Montserrat',sans-serif" }}>
+        <button onClick={() => navigate('home')} style={{ background: '#fff', border: '1px solid #f0d5de', borderRadius: 8, padding: '10px 16px', color: '#c8254e', cursor: 'pointer', fontWeight: 700 }}>
+          {t.backToProducts}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 1180, margin: isMobile ? '124px auto 50px' : '136px auto 70px', padding: isMobile ? '0 16px' : '0 24px', direction: lang === 'ar' ? 'rtl' : 'ltr', fontFamily: "'Montserrat',sans-serif" }}>
+      <button onClick={() => navigate(safeProduct.category || 'home')} style={{ background: '#fff', color: '#c8254e', border: '1px solid #f0d5de', borderRadius: 8, padding: '10px 16px', cursor: 'pointer', fontSize: 11, fontWeight: 800, marginBottom: 18, fontFamily: "'Montserrat',sans-serif" }}>
+        {t.backToProducts}
+      </button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: isMobile ? 22 : 38, alignItems: 'start' }}>
+        <div>
+          <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 30px rgba(200,37,78,0.08)' }}>
+            <div style={{ aspectRatio: '1 / 1', background: '#f8f0f3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {activeImage ? (
+                <img src={activeImage} alt={getName(safeProduct, lang)} onError={e => { e.currentTarget.style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ color: '#c8254e', fontFamily: "'Cormorant Garamond',serif", fontSize: 34, letterSpacing: 3 }}>FLORMAR</div>
+              )}
+            </div>
+          </div>
+          {gallery.length > 1 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(64px,1fr))', gap: 8, marginTop: 12 }}>
+              {gallery.map(image => (
+                <button key={image} onClick={() => setActiveImage(image)} style={{ border: activeImage === image ? '2px solid #c8254e' : '1px solid #f0e6ea', borderRadius: 8, padding: 0, overflow: 'hidden', background: '#fff', cursor: 'pointer', aspectRatio: '1 / 1' }}>
+                  <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: '#fff', borderRadius: 14, padding: isMobile ? 20 : 28, boxShadow: '0 8px 30px rgba(200,37,78,0.06)' }}>
+          <div style={{ fontSize: 10, color: '#c8254e', fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>
+            {getCategoryLabel(category, safeProduct.category, lang, t)}
+          </div>
+          <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: isMobile ? 34 : 44, lineHeight: 1.05, color: '#1a1a1a', margin: '0 0 12px' }}>
+            {getName(safeProduct, lang)}
+          </h1>
+          <div style={{ color: '#c8254e', fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, marginBottom: 14 }}>
+            {discounted && <span style={{ color: '#aaa', textDecoration: 'line-through', marginRight: 9, fontSize: 18 }}>{fmt(safeProduct.price, t.tnd)}</span>}
+            {fmt(finalPrice, t.tnd)}
+          </div>
+          {reference && (
+            <div style={{ color: '#999', fontSize: 11, fontWeight: 700, marginBottom: 18 }}>
+              {t.reference}: {reference}
+            </div>
+          )}
+
+          <div style={{ borderTop: '1px solid #f8f0f3', paddingTop: 18, marginBottom: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>{t.description}</div>
+            <p style={{ color: '#666', fontSize: 13, lineHeight: 1.9, margin: 0 }}>
+              {description || getName(safeProduct, lang)}
+            </p>
+          </div>
+
+          {hasVariants && (
+            <div style={{ borderTop: '1px solid #f8f0f3', paddingTop: 18, marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>{t.chooseShade}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {variants.map(variant => {
+                  const selected = String(selectedVariantId) === String(variant.id)
+                  return (
+                    <button key={variant.id} onClick={() => { setSelectedVariantId(variant.id); setShadeError('') }} disabled={!variant.inStock}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, border: selected ? '2px solid #c8254e' : '1px solid #f0e6ea', background: selected ? '#fff6f8' : '#fff', color: variant.inStock ? '#333' : '#bbb', borderRadius: 8, padding: '9px 11px', cursor: variant.inStock ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 800, fontFamily: "'Montserrat',sans-serif" }}>
+                      {variant.colorHex && <span style={{ width: 16, height: 16, borderRadius: '50%', background: variant.colorHex, border: '1px solid #e8dce0', flexShrink: 0 }} />}
+                      <span>{variant.shadeName}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedVariant && (
+                <div style={{ fontSize: 11, color: '#999', marginTop: 10, lineHeight: 1.6 }}>
+                  {t.shade}: {selectedVariant.shadeName}{selectedVariant.sku ? ` · ${t.reference}: ${selectedVariant.sku}` : ''}
+                </div>
+              )}
+              {shadeError && <p style={{ color: '#c8254e', fontSize: 11, lineHeight: 1.5, margin: '8px 0 0' }}>{shadeError}</p>}
+            </div>
+          )}
+
+          <button onClick={add} disabled={!productHasStock || (selectedVariant && !selectedVariant.inStock)}
+            style={{ width: '100%', background: (!productHasStock || (selectedVariant && !selectedVariant.inStock)) ? '#ddd' : (added ? '#2ecc71' : '#c8254e'), color: '#fff', border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 800, cursor: productHasStock ? 'pointer' : 'not-allowed', fontFamily: "'Montserrat',sans-serif", letterSpacing: 0.8 }}>
+            {!productHasStock ? t.outOfStock : (added ? (lang === 'ar' ? 'Added' : 'Ajoute') : t.addToCart)}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, catalogLoading, catalogError }) {
   const catImages = {
     face: 'https://images.unsplash.com/photo-1631214500004-ef1a3578af8d?w=600&q=80',
@@ -358,7 +518,7 @@ function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, 
 }
 
 // ─── CATEGORY PAGE ────────────────────────────────────────────────────────────
-function CategoryPage({ lang, t, activeCat, navigate, cart, setCart, isMobile, products, categories, catalogLoading, catalogError }) {
+function CategoryPage({ lang, t, activeCat, navigate, cart, setCart, isMobile, products, categories, catalogLoading, catalogError, onViewProduct }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState('default')
   const category = categories.find(c => c.slug === activeCat)
@@ -430,7 +590,7 @@ function CategoryPage({ lang, t, activeCat, navigate, cart, setCart, isMobile, p
         </p>
         {catalogError && <p style={{ color: '#c8254e', fontSize: 12, marginBottom: 16 }}>{catalogError}</p>}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(auto-fill,minmax(200px,1fr))', gap: isMobile ? 12 : 18 }}>
-          {shownProducts.map(p => <ProductCard key={p.id} product={p} t={t} lang={lang} setCart={setCart} />)}
+          {shownProducts.map(p => <ProductCard key={p.id} product={p} t={t} lang={lang} setCart={setCart} onView={onViewProduct} />)}
         </div>
       </div>
     </div>
@@ -1255,10 +1415,12 @@ export default function App() {
   const [adminToken, setAdminToken] = useState('')
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [selectedProductId, setSelectedProductId] = useState('')
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [catalogError, setCatalogError] = useState('')
   const isMobile = useIsMobile()
   const t = T[lang]
+  const selectedProduct = products.find(product => String(product.id) === String(selectedProductId)) || null
 
   useEffect(() => {
     const link = document.createElement('link')
@@ -1300,8 +1462,18 @@ export default function App() {
 
   const navigate = (dest) => {
     if (window.location.hash) window.history.pushState('', document.title, window.location.pathname + window.location.search)
+    setSelectedProductId('')
     if (dest === 'home') { setPage('home') }
     else { setActiveCat(dest); setPage('category') }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const openProduct = (product) => {
+    if (!product) return
+    if (window.location.hash) window.history.pushState('', document.title, window.location.pathname + window.location.search)
+    setSelectedProductId(product.id)
+    if (product.category) setActiveCat(product.category)
+    setPage('product')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -1349,9 +1521,10 @@ export default function App() {
       <div style={{ minHeight: '100vh', background: '#fdfaf9' }}>
         <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} />
         {page === 'home' && <HomePage lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} />}
-        {page === 'category' && <CategoryPage lang={lang} t={t} activeCat={activeCat} navigate={navigate} cart={cart} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} />}
+        {page === 'category' && <CategoryPage lang={lang} t={t} activeCat={activeCat} navigate={navigate} cart={cart} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} onViewProduct={openProduct} />}
+        {page === 'product' && <ProductDetailPage product={selectedProduct} lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} categories={categories} />}
         {page === 'checkout' && <CheckoutPage lang={lang} t={t} cart={cart} setCart={setCart} navigate={navigate} isMobile={isMobile} />}
-        {(page === 'home' || page === 'category') && <Footer lang={lang} t={t} navigate={navigate} isMobile={isMobile} categories={categories} />}
+        {(page === 'home' || page === 'category' || page === 'product') && <Footer lang={lang} t={t} navigate={navigate} isMobile={isMobile} categories={categories} />}
       </div>
     </>
   )

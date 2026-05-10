@@ -44,9 +44,7 @@ async function runDryRun() {
 }
 
 function importStock(stockStatus) {
-  if (stockStatus === 'out_of_stock') return 0
-  if (stockStatus === 'in_stock') return DEFAULT_STOCK
-  return 0
+  return DEFAULT_STOCK
 }
 
 function productPayload(item) {
@@ -66,7 +64,7 @@ function productPayload(item) {
     image_url: item.product.image_url,
     tag: item.product.tag,
     stock_quantity: hasVariants ? variantStock : importStock(item.product.stock_status),
-    is_active: item.product.is_active,
+    is_active: true,
     display_order: item.product.display_order,
   }
 }
@@ -86,7 +84,7 @@ function variantPayload(item, variant, productId, existingVariant) {
     image_url: variant.image_url || item.product.image_url || '',
     price: variantPrice,
     stock_quantity: importStock(variant.stock_status),
-    is_active: variant.is_active,
+    is_active: true,
     display_order: variant.display_order,
   }
 }
