@@ -4,6 +4,15 @@ import { CATS, CATEGORY_META, T, getName, fmt, GOVERNORATES } from '../lib/data'
 
 const ADMIN_TOKEN_KEY = 'flormar_admin_token'
 
+const CATEGORY_IMAGE_OVERRIDES = {
+  face: '/images/category-face.jpg',
+  eyes: '/images/category-eyes.jpg',
+  lips: '/images/category-lips.jpg',
+  nails: '/images/category-nails.jpg',
+  skincare: '/images/category-skincare.jpg',
+  accessories: '/images/category-accessories.jpg',
+}
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
 
@@ -57,6 +66,10 @@ function defaultCategories(t) {
 function getCategoryLabel(category, slug, lang, t) {
   if (category) return lang === 'ar' ? (category.nameAr || t.catLabels[slug]) : (category.nameFr || t.catLabels[slug])
   return t.catLabels[slug] || slug
+}
+
+function getCategoryImage(category, slug, fallback = '') {
+  return CATEGORY_IMAGE_OVERRIDES[slug] || category?.imageUrl || CATEGORY_META[slug]?.imageUrl || fallback
 }
 
 function getCategoryMeta(category, slug, lang) {
@@ -498,7 +511,7 @@ function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, 
               <div key={cat} onClick={() => navigate(cat)} style={{ borderRadius: 14, overflow: 'hidden', cursor: 'pointer', position: 'relative', height: 200, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', transition: 'transform 0.22s,box-shadow 0.22s' }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(200,37,78,0.18)' }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)' }}>
-                <img src={category.imageUrl || catImages[cat]} alt={getCategoryLabel(category, cat, lang, t)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={getCategoryImage(category, cat, catImages[cat])} alt={getCategoryLabel(category, cat, lang, t)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(30,10,16,0.72),transparent 60%)' }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '18px 20px', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
                   <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>{getCategoryLabel(category, cat, lang, t)}</div>
@@ -540,7 +553,7 @@ function CategoryPage({ lang, t, activeCat, navigate, cart, setCart, isMobile, p
     <div style={{ marginTop: isMobile ? 104 : 110 }}>
       {/* Hero banner */}
       <div style={{ position: 'relative', height: isMobile ? 220 : 260, overflow: 'hidden' }}>
-        <img src={category?.imageUrl || catImgMap[activeCat]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={getCategoryImage(category, activeCat, catImgMap[activeCat])} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right,rgba(200,37,78,0.78),rgba(100,10,30,0.42))' }} />
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 22px' : '0 40px', width: '100%', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
