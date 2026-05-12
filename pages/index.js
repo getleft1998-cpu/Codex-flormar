@@ -562,7 +562,7 @@ function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, 
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(30,10,16,0.72),transparent 60%)' }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '18px 20px', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
                   <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>{getCategoryLabel(category, cat, lang, t)}</div>
-                  <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4, letterSpacing: 1 }}>
+                  <div style={{ display: count > 0 ? 'block' : 'none', fontFamily: "'Montserrat',sans-serif", fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4, letterSpacing: 1 }}>
                     {count} {lang === 'ar' ? 'منتج' : 'produits'}
                   </div>
                 </div>
