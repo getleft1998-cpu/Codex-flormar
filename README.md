@@ -41,9 +41,14 @@ Open:
 
 1. Open `/admin`.
 2. Enter `ADMIN_PASSWORD`.
-3. Use **Commandes** to view, assign, confirm, deliver, or cancel orders.
-4. Use **Produits** to add/edit products, update product-level stock, mark products inactive, and upload product images.
-5. In **Produits > Teintes**, choose a product, then add/edit shades with SKU/reference, HEX color, optional shade price, stock, image URL/upload, and active/inactive status.
+3. Use **Dashboard** for totals, revenue, low-stock products, recent orders, and quick actions.
+4. Use **Orders** to search orders, view customer/address/items/shades/SKUs, contact by WhatsApp, assign orders, and change status.
+5. Use **Products** to add/edit products, prices, sale prices, images, category, featured/active flags, and stock.
+6. Use **Variants** to manage shades with SKU/reference, HEX color, optional shade price, image, active flag, and shade-level stock.
+7. Use **Categories** to add/edit/hide/delete safe categories. Storefront category names update automatically.
+8. Use **Homepage** and **Settings** to edit hero text/image, announcement text, WhatsApp, delivery/payment/footer copy, currency, and social links.
+
+Image upload uses the server-only `SUPABASE_SERVICE_ROLE_KEY`. Keep it in `.env.local` and Vercel only; never expose it as `NEXT_PUBLIC_*`.
 
 ## Catalog Dry Run
 

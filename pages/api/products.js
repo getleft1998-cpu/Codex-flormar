@@ -10,6 +10,7 @@ export default async function handler(req, res) {
       supabase
         .from('categories')
         .select('*')
+        .eq('is_active', true)
         .order('display_order', { ascending: true }),
       supabase
         .from('products')
@@ -21,9 +22,19 @@ export default async function handler(req, res) {
     if (categoryResult.error) throw new Error(categoryResult.error.message)
     if (productResult.error) throw new Error(productResult.error.message)
 
+    const categories = (categoryResult.data || []).map(toClientCategory)
+    const activeCategorySlugs = new Set(categories.map(category => category.slug))
+    const products = (productResult.data || [])
+      .map(toClientProduct)
+      .filter(product => activeCategorySlugs.has(product.category))
+
+    const settingsResult = await supabase.rpc('get_store_settings')
+    const settings = settingsResult.error ? {} : (settingsResult.data || {})
+
     return res.status(200).json({
-      categories: (categoryResult.data || []).map(toClientCategory),
-      products: (productResult.data || []).map(toClientProduct),
+      categories,
+      products,
+      settings: settings || {},
     })
   } catch (error) {
     return res.status(500).json({ error: error.message })

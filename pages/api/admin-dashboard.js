@@ -12,6 +12,7 @@ export default async function handler(req, res) {
       categories: (data.categories || []).map(toClientCategory),
       products: (data.products || []).map(toClientProduct),
       orders: (data.orders || []).map(toClientOrder),
+      settings: data.settings || {},
     })
   } catch (error) {
     return res.status(500).json({ error: error.message })

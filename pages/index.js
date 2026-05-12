@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import { CATS, CATEGORY_META, T, getName, fmt, GOVERNORATES } from '../lib/data'
+import ProfessionalAdminDashboard from '../components/ProfessionalAdminDashboard'
 
 const ADMIN_TOKEN_KEY = 'flormar_admin_token'
 
@@ -11,6 +12,46 @@ const CATEGORY_IMAGE_OVERRIDES = {
   nails: '/images/category-nails.jpg',
   skincare: '/images/category-skincare.jpg',
   accessories: '/images/category-accessories.jpg',
+}
+
+const DEFAULT_STORE_SETTINGS = {
+  store_name: 'Flormar Tunisie',
+  hero_title_fr: 'Votre beaute,\nvotre style',
+  hero_title_ar: '',
+  hero_subtitle_fr: 'Produits de maquillage premium a prix accessibles. Livraison gratuite dans toute la Tunisie.',
+  hero_subtitle_ar: '',
+  hero_image_url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=900&q=80',
+  announcement_fr: 'Livraison gratuite · Paiement a la livraison',
+  announcement_ar: '',
+  promotional_text_fr: 'Paiement a la livraison',
+  promotional_text_ar: '',
+  delivery_message_fr: 'Livraison gratuite',
+  delivery_message_ar: '',
+  cod_text_fr: '',
+  cod_text_ar: '',
+  footer_text_fr: 'Tous droits reserves.',
+  footer_text_ar: '',
+  phone: '',
+  whatsapp_number: '',
+  instagram_url: '',
+  facebook_url: '',
+  tiktok_url: '',
+  currency_label: '',
+}
+
+function normalizeStoreSettings(settings = {}) {
+  return { ...DEFAULT_STORE_SETTINGS, ...(settings || {}) }
+}
+
+function storeText(settings, key, lang, fallback) {
+  const safeSettings = normalizeStoreSettings(settings)
+  return safeSettings[`${key}_${lang}`] || safeSettings[`${key}_fr`] || fallback
+}
+
+function normalizeExternalUrl(value = '') {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
 }
 
 function useIsMobile() {
@@ -26,12 +67,13 @@ function useIsMobile() {
   return isMobile
 }
 
-function getWhatsappNumber() {
-  return (process.env.NEXT_PUBLIC_WHATSAPP || '').replace(/\D/g, '')
+function getWhatsappNumber(settings) {
+  const safeSettings = normalizeStoreSettings(settings)
+  return (safeSettings.whatsapp_number || process.env.NEXT_PUBLIC_WHATSAPP || '').replace(/\D/g, '')
 }
 
-function buildWhatsappOrderUrl(order, lang, t) {
-  const number = getWhatsappNumber()
+function buildWhatsappOrderUrl(order, lang, t, settings) {
+  const number = getWhatsappNumber(settings)
   if (!number || !order) return ''
 
   const lines = [
@@ -69,7 +111,7 @@ function getCategoryLabel(category, slug, lang, t) {
 }
 
 function getCategoryImage(category, slug, fallback = '') {
-  return CATEGORY_IMAGE_OVERRIDES[slug] || category?.imageUrl || CATEGORY_META[slug]?.imageUrl || fallback
+  return category?.imageUrl || CATEGORY_IMAGE_OVERRIDES[slug] || CATEGORY_META[slug]?.imageUrl || fallback
 }
 
 function getCategoryMeta(category, slug, lang) {
@@ -91,7 +133,8 @@ function getCartItemKey(item) {
 }
 
 function addProductToCart(setCart, product, selectedVariant) {
-  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : product.price
+  const productPrice = product.salePrice !== null && product.salePrice !== undefined ? product.salePrice : product.price
+  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : productPrice
   const imageSrc = selectedVariant?.image || product.image
   const cartKey = `${product.id}:${selectedVariant?.id || 'base'}`
   const item = {
@@ -178,7 +221,7 @@ function CartDrawer({ open, onClose, cart, setCart, t, lang, onCheckout, isMobil
 }
 
 // ─── HEADER ───────────────────────────────────────────────────────────────────
-function Header({ lang, setLang, t, cart, setCart, activeCat, navigate, setPage, openAdmin, isMobile, categories }) {
+function Header({ lang, setLang, t, cart, setCart, activeCat, navigate, setPage, openAdmin, isMobile, categories, settings }) {
   const [cartOpen, setCartOpen] = useState(false)
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const navCategories = categories.length ? categories : defaultCategories(t)
@@ -187,7 +230,7 @@ function Header({ lang, setLang, t, cart, setCart, activeCat, navigate, setPage,
     <>
       <header style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, background: '#fff', boxShadow: '0 1px 12px rgba(0,0,0,0.06)', fontFamily: "'Montserrat',sans-serif" }}>
         <div style={{ background: '#c8254e', color: '#fff', textAlign: 'center', fontSize: isMobile ? 10 : 11, padding: '5px 10px', letterSpacing: isMobile ? 1 : 2 }}>
-          🚚 {lang === 'ar' ? 'توصيل مجاني · الدفع عند الاستلام' : 'Livraison gratuite · Paiement à la livraison'}
+          {storeText(settings, 'announcement', lang, lang === 'ar' ? 'توصيل مجاني · الدفع عند الاستلام' : 'Livraison gratuite · Paiement a la livraison')}
         </div>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 12px' : '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: isMobile ? 54 : 58, gap: 10 }}>
           <div onClick={() => navigate('home')} style={{ cursor: 'pointer', lineHeight: 1, userSelect: 'none' }}>
@@ -240,9 +283,11 @@ function ProductCard({ product, t, lang, setCart, onView }) {
   const productHasStock = product.inStock !== false && Number(product.stockQuantity || 0) > 0
   const inStock = productHasStock
   const canAddSelected = hasVariants ? Boolean(selectedVariant && selectedVariant.inStock) : productHasStock
-  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : product.price
+  const productSalePrice = product.salePrice !== null && product.salePrice !== undefined && Number(product.salePrice) < Number(product.price)
+  const productDisplayPrice = productSalePrice ? product.salePrice : product.price
+  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : productDisplayPrice
   const imageSrc = selectedVariant?.image || product.image
-  const discounted = selectedVariant && selectedVariant.price !== null && Number(selectedVariant.price) < Number(product.price)
+  const discounted = productSalePrice || (selectedVariant && selectedVariant.price !== null && Number(selectedVariant.price) < Number(product.price))
   const add = () => {
     if (hasVariants && !selectedVariant) {
       setShadeError(t.shadeRequired)
@@ -332,8 +377,10 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, isMobile, cate
   const selectedVariant = variants.find(variant => String(variant.id) === String(selectedVariantId))
   const productHasStock = safeProduct.inStock !== false && Number(safeProduct.stockQuantity || 0) > 0
   const canAddSelected = hasVariants ? Boolean(selectedVariant && selectedVariant.inStock) : productHasStock
-  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : safeProduct.price
-  const discounted = selectedVariant && selectedVariant.price !== null && Number(selectedVariant.price) < Number(safeProduct.price)
+  const productSalePrice = safeProduct.salePrice !== null && safeProduct.salePrice !== undefined && Number(safeProduct.salePrice) < Number(safeProduct.price)
+  const productDisplayPrice = productSalePrice ? safeProduct.salePrice : safeProduct.price
+  const finalPrice = selectedVariant && selectedVariant.price !== null ? selectedVariant.price : productDisplayPrice
+  const discounted = productSalePrice || (selectedVariant && selectedVariant.price !== null && Number(selectedVariant.price) < Number(safeProduct.price))
   const description = getDescription(safeProduct, lang)
   const reference = selectedVariant?.sku || safeProduct.sku || ''
 
@@ -456,7 +503,7 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, isMobile, cate
   )
 }
 
-function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, catalogLoading, catalogError }) {
+function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, catalogLoading, catalogError, settings, onViewProduct }) {
   const catImages = {
     face: 'https://images.unsplash.com/photo-1631214500004-ef1a3578af8d?w=600&q=80',
     eyes: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=600&q=80',
@@ -471,7 +518,7 @@ function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, 
       {/* Hero */}
       <div style={{ marginTop: isMobile ? 104 : 110, background: 'linear-gradient(135deg,#fff0f4,#fde8ef 55%,#f5d5e2)', minHeight: isMobile ? 390 : 420, display: 'flex', alignItems: 'center', position: 'relative', overflow: 'hidden', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
         <div style={{ position: 'absolute', right: lang === 'ar' ? 'auto' : 0, left: lang === 'ar' ? 0 : 'auto', top: 0, bottom: 0, width: isMobile ? '100%' : '44%', overflow: 'hidden', opacity: isMobile ? 0.28 : 1 }}>
-          <img src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=900&q=80" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />
+          <img src={normalizeStoreSettings(settings).hero_image_url || DEFAULT_STORE_SETTINGS.hero_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />
           <div style={{ position: 'absolute', inset: 0, background: lang === 'ar' ? 'linear-gradient(to left,#fff0f4,transparent)' : 'linear-gradient(to right,#fff0f4,transparent)' }} />
         </div>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '52px 22px' : '60px 40px', position: 'relative', zIndex: 2, width: '100%' }}>
@@ -479,17 +526,17 @@ function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, 
             {lang === 'ar' ? 'مجموعة 2025' : 'Collection 2025'}
           </p>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: isMobile ? 42 : 52, fontWeight: 700, color: '#1a1a1a', margin: '0 0 16px', lineHeight: 1.1 }}>
-            {lang === 'ar' ? 'جمالك\nأسلوبك' : 'Votre beauté,\nvotre style'}
+            {storeText(settings, 'hero_title', lang, lang === 'ar' ? 'جمالك\nأسلوبك' : 'Votre beaute,\nvotre style')}
           </h1>
           <p style={{ fontFamily: "'Montserrat',sans-serif", fontSize: 13, color: '#888', maxWidth: 360, lineHeight: 1.9, marginBottom: 28 }}>
-            {lang === 'ar' ? 'منتجات مكياج فاخرة بأسعار في متناول الجميع. توصيل مجاني لكل ولايات تونس.' : 'Produits de maquillage premium à prix accessibles. Livraison gratuite dans toute la Tunisie.'}
+            {storeText(settings, 'hero_subtitle', lang, lang === 'ar' ? 'منتجات مكياج فاخرة بأسعار في متناول الجميع. توصيل مجاني لكل ولايات تونس.' : 'Produits de maquillage premium a prix accessibles. Livraison gratuite dans toute la Tunisie.')}
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={() => navigate('face')} style={{ background: '#c8254e', color: '#fff', border: 'none', borderRadius: 8, padding: '13px 30px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", letterSpacing: 1 }}>
               {lang === 'ar' ? 'تسوقي الآن' : 'Découvrir →'}
             </button>
             <span style={{ fontFamily: "'Montserrat',sans-serif", fontSize: 11, color: '#aaa', fontWeight: 600 }}>
-              💵 {lang === 'ar' ? 'دفع عند الاستلام' : 'Paiement à la livraison'}
+              {storeText(settings, 'promotional_text', lang, lang === 'ar' ? 'دفع عند الاستلام' : 'Paiement a la livraison')}
             </span>
           </div>
         </div>
@@ -526,6 +573,19 @@ function HomePage({ lang, t, navigate, setCart, isMobile, products, categories, 
         {catalogLoading && <p style={{ textAlign: 'center', color: '#bbb', fontSize: 12, marginTop: 18 }}>Chargement...</p>}
         {catalogError && <p style={{ textAlign: 'center', color: '#c8254e', fontSize: 12, marginTop: 18 }}>{catalogError}</p>}
       </div>
+
+      {products.some(product => product.isFeatured) && (
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 16px 52px' : '0 24px 64px' }}>
+          <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 32, color: '#1a1a1a', marginBottom: 20, textAlign: 'center' }}>
+            {lang === 'ar' ? 'منتجات مختارة' : 'Produits en vedette'}
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(auto-fill,minmax(200px,1fr))', gap: isMobile ? 12 : 18 }}>
+            {products.filter(product => product.isFeatured).slice(0, 8).map(product => (
+              <ProductCard key={product.id} product={product} t={t} lang={lang} setCart={setCart} onView={onViewProduct} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -611,7 +671,7 @@ function CategoryPage({ lang, t, activeCat, navigate, cart, setCart, isMobile, p
 }
 
 // ─── CHECKOUT ─────────────────────────────────────────────────────────────────
-function CheckoutPage({ lang, t, cart, setCart, navigate, isMobile }) {
+function CheckoutPage({ lang, t, cart, setCart, navigate, isMobile, settings }) {
   const [form, setForm] = useState({ name: '', phone: '', governorate: '', city: '', address: '' })
   const [errors, setErrors] = useState({})
   const [done, setDone] = useState(false)
@@ -640,7 +700,7 @@ function CheckoutPage({ lang, t, cart, setCart, navigate, isMobile }) {
       const data = await res.json()
       if (!res.ok || data.error) throw new Error(data.error || 'Erreur. Veuillez réessayer.')
       setSubmittedOrder(data.order)
-      const whatsappUrl = buildWhatsappOrderUrl(data.order, lang, t)
+      const whatsappUrl = buildWhatsappOrderUrl(data.order, lang, t, settings)
       if (whatsappUrl) window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
       setCart([])
       setDone(true)
@@ -664,8 +724,8 @@ function CheckoutPage({ lang, t, cart, setCart, navigate, isMobile }) {
       <div style={{ fontSize: 68, marginBottom: 14 }}>✅</div>
       <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 30, color: '#c8254e', marginBottom: 10 }}>{t.orderSuccess}</h2>
       <p style={{ fontSize: 13, color: '#888', lineHeight: 1.9, marginBottom: 28 }}>{t.orderSuccessMsg}</p>
-      {buildWhatsappOrderUrl(submittedOrder, lang, t) && (
-        <button onClick={() => window.open(buildWhatsappOrderUrl(submittedOrder, lang, t), '_blank', 'noopener,noreferrer')} style={{ background: '#2ecc71', color: '#fff', border: 'none', borderRadius: 8, padding: '13px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", marginBottom: 10, width: isMobile ? '100%' : 'auto' }}>
+      {buildWhatsappOrderUrl(submittedOrder, lang, t, settings) && (
+        <button onClick={() => window.open(buildWhatsappOrderUrl(submittedOrder, lang, t, settings), '_blank', 'noopener,noreferrer')} style={{ background: '#2ecc71', color: '#fff', border: 'none', borderRadius: 8, padding: '13px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", marginBottom: 10, width: isMobile ? '100%' : 'auto' }}>
           WhatsApp
         </button>
       )}
@@ -682,7 +742,7 @@ function CheckoutPage({ lang, t, cart, setCart, navigate, isMobile }) {
         <div style={{ background: '#fff', borderRadius: 14, padding: isMobile ? '20px' : '26px', boxShadow: '0 2px 18px rgba(200,37,78,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: '11px 14px', background: '#f0faf4', borderRadius: 8, border: '1px solid #d5f0e0' }}>
             <span style={{ fontSize: 18 }}>💵</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#27ae60' }}>{t.cod}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#27ae60' }}>{storeText(settings, 'cod_text', lang, t.cod)}</span>
           </div>
           {[
             { k: 'name', label: t.fullName, ph: lang === 'ar' ? 'محمد بن علي' : 'Mohamed Ben Ali', type: 'text' },
@@ -1149,6 +1209,7 @@ function AdminDashboard({ lang, t, onLogout, token, onAuthError, isMobile }) {
   const [orders, setOrders] = useState([])
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [settings, setSettings] = useState(DEFAULT_STORE_SETTINGS)
   const [filter, setFilter] = useState('all')
   const [tab, setTab] = useState('orders')
   const [loading, setLoading] = useState(true)
@@ -1383,16 +1444,22 @@ function AdminDashboard({ lang, t, onLogout, token, onAuthError, isMobile }) {
 }
 
 // ─── FOOTER ───────────────────────────────────────────────────────────────────
-function Footer({ lang, t, navigate, isMobile, categories }) {
+function Footer({ lang, t, navigate, isMobile, categories, settings }) {
   const footerCategories = categories.length ? categories : defaultCategories(t)
+  const safeSettings = normalizeStoreSettings(settings)
+  const phone = safeSettings.phone || safeSettings.whatsapp_number || process.env.NEXT_PUBLIC_WHATSAPP || 'WhatsApp'
+  const socialLinkStyle = { display: 'block', fontSize: 12, color: '#666', marginBottom: 7, textDecoration: 'none' }
   return (
     <footer style={{ background: '#1a1a1a', color: '#fff', padding: isMobile ? '34px 22px 18px' : '40px 40px 18px', marginTop: 60, direction: lang === 'ar' ? 'rtl' : 'ltr', fontFamily: "'Montserrat',sans-serif" }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr', gap: isMobile ? 24 : 36, marginBottom: 32 }}>
           <div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: '#c8254e', letterSpacing: 3, marginBottom: 10 }}>FLORMAR</div>
-            <p style={{ fontSize: 12, color: '#666', lineHeight: 1.9, maxWidth: 260 }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: '#c8254e', letterSpacing: 3, marginBottom: 10 }}>{safeSettings.store_name || 'FLORMAR'}</div>
+            <p style={{ fontSize: 12, color: '#666', lineHeight: 1.9, maxWidth: 260, display: 'none' }}>
               {lang === 'ar' ? 'جمال بلا حدود. توصيل مجاني لكل ولايات تونس. الدفع عند الاستلام.' : 'Beauté sans frontières. Livraison gratuite en Tunisie. Paiement à la livraison.'}
+            </p>
+            <p style={{ fontSize: 12, color: '#666', lineHeight: 1.9, maxWidth: 260 }}>
+              {storeText(settings, 'footer_text', lang, 'Beaute sans frontieres. Livraison gratuite en Tunisie. Paiement a la livraison.')}
             </p>
           </div>
           <div>
@@ -1407,12 +1474,14 @@ function Footer({ lang, t, navigate, isMobile, categories }) {
           <div>
             <h4 style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: '#c8254e', marginBottom: 13 }}>Contact</h4>
             <p style={{ fontSize: 12, color: '#666', marginBottom: 7 }}>📍 Tunisie</p>
-            <p style={{ fontSize: 12, color: '#666', marginBottom: 7 }}>📞 {process.env.NEXT_PUBLIC_WHATSAPP || 'WhatsApp'}</p>
-            <p style={{ fontSize: 12, color: '#666' }}>✉️ contact@flormar.tn</p>
+            <p style={{ fontSize: 12, color: '#666', marginBottom: 7 }}>{phone}</p>
+            {safeSettings.instagram_url && <a href={normalizeExternalUrl(safeSettings.instagram_url)} target="_blank" rel="noreferrer" style={socialLinkStyle}>Instagram</a>}
+            {safeSettings.facebook_url && <a href={normalizeExternalUrl(safeSettings.facebook_url)} target="_blank" rel="noreferrer" style={socialLinkStyle}>Facebook</a>}
+            {safeSettings.tiktok_url && <a href={normalizeExternalUrl(safeSettings.tiktok_url)} target="_blank" rel="noreferrer" style={{ ...socialLinkStyle, marginBottom: 0 }}>TikTok</a>}
           </div>
         </div>
         <div style={{ borderTop: '1px solid #2a2a2a', paddingTop: 16, textAlign: 'center', fontSize: 10, color: '#444' }}>
-          © 2025 Flormar Tunisie. Tous droits réservés.
+          © 2026 {safeSettings.store_name || 'Flormar Tunisie'}.
         </div>
       </div>
     </footer>
@@ -1428,6 +1497,7 @@ export default function App() {
   const [adminToken, setAdminToken] = useState('')
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [settings, setSettings] = useState(DEFAULT_STORE_SETTINGS)
   const [selectedProductId, setSelectedProductId] = useState('')
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [catalogError, setCatalogError] = useState('')
@@ -1460,6 +1530,7 @@ export default function App() {
         if (!res.ok) throw new Error(data.error || t.loadError)
         setProducts(data.products || [])
         setCategories(data.categories || [])
+        setSettings(normalizeStoreSettings(data.settings || {}))
         if ((data.categories || []).length && !data.categories.some(category => category.slug === activeCat)) {
           setActiveCat(data.categories[0].slug)
         }
@@ -1516,12 +1587,12 @@ export default function App() {
   }
 
   if (page === 'admin-login') {
-    if (adminToken) return <AdminDashboard lang={lang} t={t} token={adminToken} onLogout={handleAdminLogout} onAuthError={handleAdminAuthError} isMobile={isMobile} />
+    if (adminToken) return <ProfessionalAdminDashboard lang={lang} t={t} token={adminToken} onLogout={handleAdminLogout} onAuthError={handleAdminAuthError} isMobile={isMobile} />
     return <AdminLogin lang={lang} t={t} onSuccess={handleAdminLogin} />
   }
   if (page === 'admin-dashboard') {
     if (!adminToken) return <AdminLogin lang={lang} t={t} onSuccess={handleAdminLogin} />
-    return <AdminDashboard lang={lang} t={t} token={adminToken} onLogout={handleAdminLogout} onAuthError={handleAdminAuthError} isMobile={isMobile} />
+    return <ProfessionalAdminDashboard lang={lang} t={t} token={adminToken} onLogout={handleAdminLogout} onAuthError={handleAdminAuthError} isMobile={isMobile} />
   }
 
   return (
@@ -1532,12 +1603,12 @@ export default function App() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <div style={{ minHeight: '100vh', background: '#fdfaf9' }}>
-        <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} />
-        {page === 'home' && <HomePage lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} />}
+        <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} settings={settings} />
+        {page === 'home' && <HomePage lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} settings={settings} onViewProduct={openProduct} />}
         {page === 'category' && <CategoryPage lang={lang} t={t} activeCat={activeCat} navigate={navigate} cart={cart} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} onViewProduct={openProduct} />}
         {page === 'product' && <ProductDetailPage product={selectedProduct} lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} categories={categories} />}
-        {page === 'checkout' && <CheckoutPage lang={lang} t={t} cart={cart} setCart={setCart} navigate={navigate} isMobile={isMobile} />}
-        {(page === 'home' || page === 'category' || page === 'product') && <Footer lang={lang} t={t} navigate={navigate} isMobile={isMobile} categories={categories} />}
+        {page === 'checkout' && <CheckoutPage lang={lang} t={t} cart={cart} setCart={setCart} navigate={navigate} isMobile={isMobile} settings={settings} />}
+        {(page === 'home' || page === 'category' || page === 'product') && <Footer lang={lang} t={t} navigate={navigate} isMobile={isMobile} categories={categories} settings={settings} />}
       </div>
     </>
   )
