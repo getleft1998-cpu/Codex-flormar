@@ -4,6 +4,7 @@ import { CATS, CATEGORY_META, T, getName, fmt, GOVERNORATES } from '../lib/data'
 import ProfessionalAdminDashboard from '../components/ProfessionalAdminDashboard'
 
 const ADMIN_TOKEN_KEY = 'flormar_admin_token'
+const CART_STORAGE_KEY = 'flormar_cart_items'
 
 const CATEGORY_IMAGE_OVERRIDES = {
   face: '/images/category-face.jpg',
@@ -177,6 +178,70 @@ function getDescription(product, lang) {
 
 function getCartItemKey(item) {
   return item.cartKey || `${item.id || item.productId}:${item.variantId || 'base'}`
+}
+
+function normalizeStoredCart(items) {
+  if (!Array.isArray(items)) return []
+
+  return items.map(item => {
+    if (!item || typeof item !== 'object') return null
+    const productId = item.id || item.productId
+    const qty = Math.max(1, Math.min(99, Number(item.qty || 1)))
+    const price = Number(item.price)
+    if (!productId || !Number.isFinite(qty) || !Number.isFinite(price)) return null
+
+    return {
+      ...item,
+      id: productId,
+      productId,
+      cartKey: item.cartKey || `${productId}:${item.variantId || 'base'}`,
+      variantId: item.variantId || null,
+      shadeName: item.shadeName || '',
+      sku: item.sku || '',
+      colorHex: item.colorHex || '',
+      image: item.image || item.imageUrl || '',
+      price,
+      qty,
+    }
+  }).filter(Boolean)
+}
+
+function reconcileCartWithProducts(cart, products) {
+  if (!Array.isArray(products) || products.length === 0) return cart
+
+  return cart.map(item => {
+    const product = products.find(candidate => [candidate.id, candidate.legacyId, candidate.slug].some(value => String(value || '') === String(item.productId || item.id || item.slug || '')))
+    if (!product) return item
+    if (product.isActive === false) return null
+
+    if (item.variantId) {
+      const variant = (product.variants || []).find(candidate => String(candidate.id) === String(item.variantId))
+      if (!variant || variant.isActive === false) return null
+      return {
+        ...item,
+        ...product,
+        cartKey: item.cartKey,
+        productId: product.id,
+        variantId: variant.id,
+        shadeName: variant.shadeName || item.shadeName || '',
+        sku: variant.sku || item.sku || product.sku || '',
+        colorHex: variant.colorHex || item.colorHex || '',
+        image: variant.image || product.image || item.image,
+        price: item.price,
+        qty: item.qty,
+      }
+    }
+
+    return {
+      ...item,
+      ...product,
+      cartKey: item.cartKey,
+      productId: product.id,
+      image: product.image || item.image,
+      price: item.price,
+      qty: item.qty,
+    }
+  }).filter(Boolean)
 }
 
 function addProductToCart(setCart, product, selectedVariant) {
@@ -1614,6 +1679,7 @@ export default function App({ initialRoute = null }) {
   const [page, setPage] = useState(startingRoute.type === 'category' ? 'category' : 'home')
   const [activeCat, setActiveCat] = useState(startingRoute.type === 'category' ? startingRoute.slug : 'face')
   const [cart, setCart] = useState([])
+  const [cartReady, setCartReady] = useState(false)
   const [adminToken, setAdminToken] = useState('')
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
@@ -1640,6 +1706,24 @@ export default function App({ initialRoute = null }) {
       setPage(storedToken ? 'admin-dashboard' : 'admin-login')
     }
   }, [])
+
+  useEffect(() => {
+    try {
+      const storedCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]')
+      setCart(normalizeStoredCart(storedCart))
+    } catch (error) {
+      localStorage.removeItem(CART_STORAGE_KEY)
+    } finally {
+      setCartReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!cartReady) return
+    const safeCart = normalizeStoredCart(cart)
+    if (safeCart.length > 0) localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(safeCart))
+    else localStorage.removeItem(CART_STORAGE_KEY)
+  }, [cart, cartReady])
 
   useEffect(() => {
     const loadCatalog = async () => {
@@ -1706,6 +1790,14 @@ export default function App({ initialRoute = null }) {
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
   }, [catalogLoading, products, categories, adminToken])
+
+  useEffect(() => {
+    if (!cartReady || catalogLoading || products.length === 0) return
+    setCart(prev => {
+      const reconciled = reconcileCartWithProducts(prev, products)
+      return JSON.stringify(reconciled) === JSON.stringify(prev) ? prev : reconciled
+    })
+  }, [cartReady, catalogLoading, products])
 
   const navigate = (dest) => {
     pushAppUrl(categoryUrl(dest))
