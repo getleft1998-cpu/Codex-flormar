@@ -27,15 +27,17 @@ function decodePathSegment(value = '') {
   }
 }
 
-function getRouteFromLocation() {
+function getRouteFromLocation(options = {}) {
   if (typeof window === 'undefined') return { type: 'home' }
   if (window.location.hash === '#admin') return { type: 'admin' }
+
+  const params = new URLSearchParams(window.location.search)
+  if (!options.ignoreCheckout && params.get('checkout') === '1') return { type: 'checkout' }
 
   const segments = window.location.pathname.split('/').filter(Boolean)
   if (segments[0] === 'product' && segments[1]) return { type: 'product', slug: decodePathSegment(segments[1]) }
   if (segments[0] === 'category' && segments[1]) return { type: 'category', slug: decodePathSegment(segments[1]) }
 
-  const params = new URLSearchParams(window.location.search)
   const product = params.get('product')
   if (product) return { type: 'product', slug: product }
   const category = params.get('category')
@@ -54,8 +56,31 @@ function categoryUrl(slug) {
 }
 
 function pushAppUrl(url) {
+  if (typeof window === 'undefined') return
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
   if (current !== url) window.history.pushState('', document.title, url)
+}
+
+function replaceAppUrl(url) {
+  if (typeof window === 'undefined') return
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  if (current !== url) window.history.replaceState('', document.title, url)
+}
+
+function updateUrlFlags(updates, mode = 'push') {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  Object.entries(updates).forEach(([name, enabled]) => {
+    if (enabled) url.searchParams.set(name, '1')
+    else url.searchParams.delete(name)
+  })
+  const next = `${url.pathname}${url.search}${url.hash}`
+  if (mode === 'replace') replaceAppUrl(next)
+  else pushAppUrl(next)
+}
+
+function setUrlFlag(name, enabled, mode = 'push') {
+  updateUrlFlags({ [name]: enabled }, mode)
 }
 
 function routeNeedsCatalog(route) {
@@ -339,10 +364,48 @@ function CartDrawer({ open, onClose, cart, setCart, t, lang, onCheckout, isMobil
 }
 
 // ─── HEADER ───────────────────────────────────────────────────────────────────
-function Header({ lang, setLang, t, cart, setCart, activeCat, navigate, setPage, openAdmin, isMobile, categories, settings }) {
+function Header({ lang, setLang, t, cart, setCart, cartReady, activeCat, navigate, setPage, openAdmin, isMobile, categories, settings }) {
   const [cartOpen, setCartOpen] = useState(false)
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const navCategories = categories.length ? categories : defaultCategories(t)
+
+  useEffect(() => {
+    if (!cartReady) return
+
+    const syncCartState = () => {
+      const wantsCart = new URLSearchParams(window.location.search).get('cart') === '1'
+      if (wantsCart && cartCount > 0) {
+        setCartOpen(true)
+        return
+      }
+      if (wantsCart && cartCount === 0) {
+        setUrlFlag('cart', false, 'replace')
+        return
+      }
+      setCartOpen(false)
+    }
+
+    syncCartState()
+    window.addEventListener('popstate', syncCartState)
+    return () => window.removeEventListener('popstate', syncCartState)
+  }, [cartCount, cartReady])
+
+  const openCart = () => {
+    if (cartCount > 0) setUrlFlag('cart', true)
+    setCartOpen(true)
+  }
+
+  const closeCart = () => {
+    setCartOpen(false)
+    setUrlFlag('cart', false)
+  }
+
+  const startCheckout = () => {
+    setCartOpen(false)
+    updateUrlFlags({ cart: false, checkout: true })
+    setPage('checkout')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <>
@@ -364,7 +427,7 @@ function Header({ lang, setLang, t, cart, setCart, activeCat, navigate, setPage,
             <button onClick={openAdmin} style={{ background: 'none', border: '1px solid #eee', borderRadius: 6, padding: isMobile ? '5px 8px' : '5px 12px', cursor: 'pointer', fontSize: 10, color: '#aaa', fontFamily: "'Montserrat',sans-serif", whiteSpace: 'nowrap' }}>
               ⚙ {t.admin}
             </button>
-            <button onClick={() => setCartOpen(true)} style={{ position: 'relative', background: '#c8254e', color: '#fff', border: 'none', borderRadius: 50, width: 38, height: 38, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={openCart} style={{ position: 'relative', background: '#c8254e', color: '#fff', border: 'none', borderRadius: 50, width: 38, height: 38, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               🛍️
               {cartCount > 0 && <span style={{ position: 'absolute', top: -4, right: -4, background: '#1a1a1a', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{cartCount}</span>}
             </button>
@@ -384,8 +447,8 @@ function Header({ lang, setLang, t, cart, setCart, activeCat, navigate, setPage,
           </nav>
         </div>
       </header>
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} cart={cart} setCart={setCart} t={t} lang={lang} isMobile={isMobile}
-        onCheckout={() => { setCartOpen(false); setPage('checkout'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
+      <CartDrawer open={cartOpen} onClose={closeCart} cart={cart} setCart={setCart} t={t} lang={lang} isMobile={isMobile}
+        onCheckout={startCheckout} />
     </>
   )
 }
@@ -541,6 +604,7 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
     if (!canAddSelected) return
     addProductToCart(setCart, safeProduct, selectedVariant)
     setShadeError('')
+    updateUrlFlags({ cart: false, checkout: true })
     setPage('checkout')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -851,6 +915,10 @@ function CheckoutPage({ lang, t, cart, setCart, navigate, isMobile, settings }) 
   const [submitError, setSubmitError] = useState('')
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
 
+  useEffect(() => {
+    if (!done && cart.length === 0) setUrlFlag('checkout', false, 'replace')
+  }, [cart.length, done])
+
   const validate = () => {
     const e = {}
     Object.keys(form).forEach(k => { if (!form[k].trim()) e[k] = true })
@@ -900,6 +968,17 @@ function CheckoutPage({ lang, t, cart, setCart, navigate, isMobile, settings }) 
           WhatsApp
         </button>
       )}
+      <button onClick={() => navigate('home')} style={{ background: '#c8254e', color: '#fff', border: 'none', borderRadius: 8, padding: '13px 32px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", width: isMobile ? '100%' : 'auto' }}>
+        {t.backToShop}
+      </button>
+    </div>
+  )
+
+  if (cart.length === 0) return (
+    <div style={{ maxWidth: 460, margin: '140px auto 60px', textAlign: 'center', padding: isMobile ? '38px 22px' : '46px 32px', background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(200,37,78,0.10)', fontFamily: "'Montserrat',sans-serif" }}>
+      <div style={{ fontSize: 42, marginBottom: 12 }}>🛍️</div>
+      <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: '#c8254e', marginBottom: 10 }}>{t.cartEmpty}</h2>
+      <p style={{ fontSize: 13, color: '#888', lineHeight: 1.8, marginBottom: 24 }}>{lang === 'ar' ? 'أضيفي منتجاً قبل إتمام الطلب.' : 'Ajoutez un produit avant de finaliser la commande.'}</p>
       <button onClick={() => navigate('home')} style={{ background: '#c8254e', color: '#fff', border: 'none', borderRadius: 8, padding: '13px 32px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", width: isMobile ? '100%' : 'auto' }}>
         {t.backToShop}
       </button>
@@ -1753,12 +1832,27 @@ export default function App({ initialRoute = null }) {
     if (catalogLoading) return
 
     const syncRoute = () => {
-      const route = getRouteFromLocation()
+      let route = getRouteFromLocation()
 
       if (route.type === 'admin') {
         setRouteLoading(false)
         setPage(adminToken ? 'admin-dashboard' : 'admin-login')
         return
+      }
+
+      if (route.type === 'checkout') {
+        if (!cartReady) {
+          setRouteLoading(true)
+          return
+        }
+        if (cart.length > 0) {
+          setSelectedProductId('')
+          setRouteLoading(false)
+          setPage('checkout')
+          return
+        }
+        setUrlFlag('checkout', false, 'replace')
+        route = getRouteFromLocation({ ignoreCheckout: true })
       }
 
       if (route.type === 'product') {
@@ -1789,7 +1883,7 @@ export default function App({ initialRoute = null }) {
     syncRoute()
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
-  }, [catalogLoading, products, categories, adminToken])
+  }, [catalogLoading, products, categories, adminToken, cartReady])
 
   useEffect(() => {
     if (!cartReady || catalogLoading || products.length === 0) return
@@ -1856,7 +1950,7 @@ export default function App({ initialRoute = null }) {
           <meta name="viewport" content="width=device-width, initial-scale=1" />
         </Head>
         <div style={{ minHeight: '100vh', background: '#fdfaf9' }}>
-          <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} settings={settings} />
+          <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} cartReady={cartReady} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} settings={settings} />
           <RouteLoading isMobile={isMobile} />
         </div>
       </>
@@ -1880,7 +1974,7 @@ export default function App({ initialRoute = null }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <div style={{ minHeight: '100vh', background: '#fdfaf9' }}>
-        <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} settings={settings} />
+        <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} cartReady={cartReady} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} settings={settings} />
         {page === 'home' && <HomePage lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} settings={settings} onViewProduct={openProduct} />}
         {page === 'category' && <CategoryPage lang={lang} t={t} activeCat={activeCat} navigate={navigate} cart={cart} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} onViewProduct={openProduct} />}
         {page === 'product' && <ProductDetailPage product={selectedProduct} lang={lang} t={t} navigate={navigate} setCart={setCart} setPage={setPage} isMobile={isMobile} categories={categories} />}
