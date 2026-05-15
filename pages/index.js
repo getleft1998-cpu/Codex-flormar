@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 import { CATS, CATEGORY_META, T, getName, fmt, GOVERNORATES } from '../lib/data'
 import ProfessionalAdminDashboard from '../components/ProfessionalAdminDashboard'
@@ -373,6 +373,7 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
   const [shadeError, setShadeError] = useState('')
   const [added, setAdded] = useState(false)
   const [activeImage, setActiveImage] = useState(gallery[0] || '')
+  const shadeSelectorRef = useRef(null)
 
   const selectedVariant = variants.find(variant => String(variant.id) === String(selectedVariantId))
   const productHasStock = safeProduct.inStock !== false && Number(safeProduct.stockQuantity || 0) > 0
@@ -395,6 +396,12 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
     if (selectedVariant?.image) setActiveImage(selectedVariant.image)
   }, [selectedVariantId])
 
+  const selectVariant = (variant) => {
+    setSelectedVariantId(variant.id)
+    setShadeError('')
+    if (variant.image) setActiveImage(variant.image)
+  }
+
   const add = () => {
     if (hasVariants && !selectedVariant) {
       setShadeError(t.shadeRequired)
@@ -409,7 +416,8 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
 
   const buyNow = () => {
     if (hasVariants && !selectedVariant) {
-      setShadeError(t.shadeRequired)
+      setShadeError('Veuillez choisir une teinte')
+      shadeSelectorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
     if (!canAddSelected) return
@@ -418,6 +426,30 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
     setPage('checkout')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  const renderShadeSelector = () => hasVariants && (
+    <div ref={shadeSelectorRef} style={{ borderTop: isMobile ? 'none' : '1px solid #f8f0f3', paddingTop: isMobile ? 14 : 18, marginBottom: isMobile ? 0 : 20, background: isMobile ? '#fff' : 'transparent', borderRadius: isMobile ? 12 : 0, padding: isMobile ? 14 : undefined, boxShadow: isMobile ? '0 6px 22px rgba(200,37,78,0.06)' : 'none' }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>{t.chooseShade}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {variants.map(variant => {
+          const selected = String(selectedVariantId) === String(variant.id)
+          return (
+            <button key={variant.id} onClick={() => selectVariant(variant)} disabled={!variant.inStock}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: '100%', border: selected ? '2px solid #c8254e' : '1px solid #f0e6ea', background: selected ? '#fff6f8' : '#fff', color: variant.inStock ? '#333' : '#bbb', borderRadius: 8, padding: '9px 11px', cursor: variant.inStock ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 800, fontFamily: "'Montserrat',sans-serif" }}>
+              {variant.colorHex && <span style={{ width: 16, height: 16, borderRadius: '50%', background: variant.colorHex, border: '1px solid #e8dce0', flexShrink: 0 }} />}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{variant.shadeName}</span>
+            </button>
+          )
+        })}
+      </div>
+      {selectedVariant && (
+        <div style={{ fontSize: 12, color: '#c8254e', fontWeight: 800, marginTop: 10, lineHeight: 1.6 }}>
+          Teinte sélectionnée: {selectedVariant.shadeName}
+        </div>
+      )}
+      {shadeError && <p style={{ color: '#c8254e', fontSize: 11, lineHeight: 1.5, margin: '8px 0 0', fontWeight: 700 }}>{shadeError}</p>}
+    </div>
+  )
 
   if (!product) {
     return (
@@ -446,6 +478,7 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
               )}
             </div>
           </div>
+          {isMobile && hasVariants && <div style={{ marginTop: 12 }}>{renderShadeSelector()}</div>}
           {gallery.length > 1 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(64px,1fr))', gap: 8, marginTop: 12 }}>
               {gallery.map(image => (
@@ -481,7 +514,7 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
             </p>
           </div>
 
-          {hasVariants && (
+          {!isMobile && hasVariants && (
             <div style={{ borderTop: '1px solid #f8f0f3', paddingTop: 18, marginBottom: 20 }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>{t.chooseShade}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -515,7 +548,7 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1200, background: 'rgba(255,255,255,0.96)', borderTop: '1px solid #f0e6ea', padding: '10px 14px calc(10px + env(safe-area-inset-bottom))', boxShadow: '0 -8px 24px rgba(200,37,78,0.12)' }}>
           <button onClick={buyNow} disabled={!productHasStock || (selectedVariant && !selectedVariant.inStock)}
             style={{ width: '100%', maxWidth: 520, margin: '0 auto', display: 'block', background: (!productHasStock || (selectedVariant && !selectedVariant.inStock)) ? '#ddd' : '#c8254e', color: '#fff', border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 800, cursor: productHasStock ? 'pointer' : 'not-allowed', fontFamily: "'Montserrat',sans-serif", letterSpacing: 0.4 }}>
-            Acheter maintenant
+            {hasVariants && !selectedVariant ? 'Choisissez une teinte' : `Acheter maintenant - ${fmt(finalPrice, t.tnd)}`}
           </button>
         </div>
       )}
