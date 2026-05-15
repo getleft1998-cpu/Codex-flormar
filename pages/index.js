@@ -213,23 +213,23 @@ function CartDrawer({ open, onClose, cart, setCart, t, lang, onCheckout, isMobil
     <>
       {open && <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1998 }} />}
       <div style={{
-        position: 'fixed', top: 0, right: open ? 0 : (isMobile ? '-100vw' : '-420px'), width: isMobile ? '100vw' : 390, maxWidth: '100vw', height: '100vh',
+        position: 'fixed', top: 0, right: open ? 0 : (isMobile ? '-100vw' : '-420px'), width: isMobile ? '100vw' : 390, maxWidth: '100vw', height: isMobile ? '100dvh' : '100vh', maxHeight: isMobile ? '100dvh' : '100vh',
         background: '#fff', zIndex: 1999, transition: 'right 0.32s cubic-bezier(.4,0,.2,1)',
         display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 28px rgba(0,0,0,0.11)',
         direction: lang === 'ar' ? 'rtl' : 'ltr', fontFamily: "'Montserrat',sans-serif",
       }}>
-        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid #f0e6ea', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: isMobile ? '16px 18px 12px' : '20px 24px 14px', borderBottom: '1px solid #f0e6ea', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <h2 style={{ margin: 0, fontSize: 20, fontFamily: "'Cormorant Garamond',serif", color: '#c8254e' }}>{t.cart}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#bbb' }}>✕</button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 24px' }}>
+        <div style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: isMobile ? '12px 16px 6px' : '14px 24px' }}>
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#ccc', marginTop: 80, fontSize: 13 }}>
               <div style={{ fontSize: 48, marginBottom: 14 }}>🛍️</div>{t.emptyCart}
             </div>
           ) : cart.map(item => (
-            <div key={getCartItemKey(item)} style={{ display: 'flex', gap: 12, marginBottom: 18, paddingBottom: 18, borderBottom: '1px solid #f8f0f3' }}>
-              <img src={item.image} alt="" onError={e => { e.currentTarget.style.display = 'none' }} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, background: '#f8f0f3' }} />
+            <div key={getCartItemKey(item)} style={{ display: 'flex', gap: 12, marginBottom: isMobile ? 10 : 18, paddingBottom: isMobile ? 10 : 18, borderBottom: '1px solid #f8f0f3' }}>
+              <img src={item.image} alt="" onError={e => { e.currentTarget.style.display = 'none' }} style={{ width: isMobile ? 58 : 64, height: isMobile ? 58 : 64, objectFit: 'cover', borderRadius: 8, background: '#f8f0f3', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#222', marginBottom: 4, lineHeight: 1.4 }}>{getName(item, lang)}</div>
                 {item.shadeName && (
@@ -250,13 +250,19 @@ function CartDrawer({ open, onClose, cart, setCart, t, lang, onCheckout, isMobil
           ))}
         </div>
         {cart.length > 0 && (
-          <div style={{ padding: '14px 24px 26px', borderTop: '1px solid #f0e6ea' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: '#999' }}>
+          <div style={{ position: isMobile ? 'sticky' : 'static', bottom: 0, flexShrink: 0, background: '#fff', padding: isMobile ? '10px 16px calc(12px + env(safe-area-inset-bottom))' : '14px 24px 26px', borderTop: '1px solid #f0e6ea', boxShadow: isMobile ? '0 -8px 22px rgba(200,37,78,0.08)' : 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: isMobile ? 4 : 6, fontSize: 12, color: '#999' }}>
               <span>{t.delivery}</span><span style={{ color: '#2ecc71', fontWeight: 700 }}>{t.free} ✓</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18, fontSize: 16, fontWeight: 700 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: isMobile ? 8 : 18, fontSize: 16, fontWeight: 700 }}>
               <span>{t.total}</span><span style={{ color: '#c8254e' }}>{fmt(total, t.tnd)}</span>
             </div>
+            {isMobile && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, color: '#777', fontSize: 10, fontWeight: 700 }}>
+                <span>Paiement à la livraison</span>
+                <span>Confirmation WhatsApp</span>
+              </div>
+            )}
             <button onClick={onCheckout} style={{ width: '100%', background: '#c8254e', color: '#fff', border: 'none', borderRadius: 8, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: 1, fontFamily: "'Montserrat',sans-serif" }}>
               {t.checkout} →
             </button>
