@@ -358,7 +358,7 @@ function ProductCard({ product, t, lang, setCart, onView }) {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 // PRODUCT DETAIL
-function ProductDetailPage({ product, lang, t, navigate, setCart, isMobile, categories }) {
+function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMobile, categories }) {
   const safeProduct = product || {}
   const variants = (safeProduct.variants || []).filter(variant => variant.isActive !== false)
   const hasVariants = variants.length > 0
@@ -407,6 +407,18 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, isMobile, cate
     setTimeout(() => setAdded(false), 1400)
   }
 
+  const buyNow = () => {
+    if (hasVariants && !selectedVariant) {
+      setShadeError(t.shadeRequired)
+      return
+    }
+    if (!canAddSelected) return
+    addProductToCart(setCart, safeProduct, selectedVariant)
+    setShadeError('')
+    setPage('checkout')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   if (!product) {
     return (
       <div style={{ maxWidth: 900, margin: isMobile ? '124px auto 50px' : '136px auto 60px', padding: '0 20px', fontFamily: "'Montserrat',sans-serif" }}>
@@ -418,7 +430,7 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, isMobile, cate
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: isMobile ? '124px auto 50px' : '136px auto 70px', padding: isMobile ? '0 16px' : '0 24px', direction: lang === 'ar' ? 'rtl' : 'ltr', fontFamily: "'Montserrat',sans-serif" }}>
+    <div style={{ maxWidth: 1180, margin: isMobile ? '124px auto 50px' : '136px auto 70px', padding: isMobile ? '0 16px 96px' : '0 24px', direction: lang === 'ar' ? 'rtl' : 'ltr', fontFamily: "'Montserrat',sans-serif" }}>
       <button onClick={() => navigate(safeProduct.category || 'home')} style={{ background: '#fff', color: '#c8254e', border: '1px solid #f0d5de', borderRadius: 8, padding: '10px 16px', cursor: 'pointer', fontSize: 11, fontWeight: 800, marginBottom: 18, fontFamily: "'Montserrat',sans-serif" }}>
         {t.backToProducts}
       </button>
@@ -499,6 +511,14 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, isMobile, cate
           </button>
         </div>
       </div>
+      {isMobile && (
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1200, background: 'rgba(255,255,255,0.96)', borderTop: '1px solid #f0e6ea', padding: '10px 14px calc(10px + env(safe-area-inset-bottom))', boxShadow: '0 -8px 24px rgba(200,37,78,0.12)' }}>
+          <button onClick={buyNow} disabled={!productHasStock || (selectedVariant && !selectedVariant.inStock)}
+            style={{ width: '100%', maxWidth: 520, margin: '0 auto', display: 'block', background: (!productHasStock || (selectedVariant && !selectedVariant.inStock)) ? '#ddd' : '#c8254e', color: '#fff', border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 800, cursor: productHasStock ? 'pointer' : 'not-allowed', fontFamily: "'Montserrat',sans-serif", letterSpacing: 0.4 }}>
+            Acheter maintenant
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1606,7 +1626,7 @@ export default function App() {
         <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} settings={settings} />
         {page === 'home' && <HomePage lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} settings={settings} onViewProduct={openProduct} />}
         {page === 'category' && <CategoryPage lang={lang} t={t} activeCat={activeCat} navigate={navigate} cart={cart} setCart={setCart} isMobile={isMobile} products={products} categories={categories} catalogLoading={catalogLoading} catalogError={catalogError} onViewProduct={openProduct} />}
-        {page === 'product' && <ProductDetailPage product={selectedProduct} lang={lang} t={t} navigate={navigate} setCart={setCart} isMobile={isMobile} categories={categories} />}
+        {page === 'product' && <ProductDetailPage product={selectedProduct} lang={lang} t={t} navigate={navigate} setCart={setCart} setPage={setPage} isMobile={isMobile} categories={categories} />}
         {page === 'checkout' && <CheckoutPage lang={lang} t={t} cart={cart} setCart={setCart} navigate={navigate} isMobile={isMobile} settings={settings} />}
         {(page === 'home' || page === 'category' || page === 'product') && <Footer lang={lang} t={t} navigate={navigate} isMobile={isMobile} categories={categories} settings={settings} />}
       </div>

@@ -58,7 +58,7 @@ Preview products from `https://flormar.tn` without writing to Supabase:
 npm run catalog:dry-run
 ```
 
-The script writes JSON/CSV previews to `catalog-preview/` and prints a report with product totals, variant totals, missing images/prices/SKUs, duplicates, and failed pages. It combines the public sitemap with product URLs resolved from the public rendered category pages, then reads each public product page. It is intentionally dry-run only.
+The script writes JSON/CSV previews to `catalog-preview/` and prints a report with product totals, variant totals, image match quality, missing images/prices/SKUs, duplicates, and failed pages. It uses Playwright to read public `flormar.tn` product pages, then checks `flormar.com` only for higher-quality image candidates. It is intentionally dry-run only: no Supabase writes and no image uploads happen until you approve an import.
 
 After reviewing the preview and approving an import, run:
 
