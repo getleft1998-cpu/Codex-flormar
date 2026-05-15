@@ -14,6 +14,49 @@ const CATEGORY_IMAGE_OVERRIDES = {
   accessories: '/images/category-accessories.jpg',
 }
 
+function encodePathSegment(value = '') {
+  return encodeURIComponent(String(value || '').trim())
+}
+
+function decodePathSegment(value = '') {
+  try {
+    return decodeURIComponent(String(value || ''))
+  } catch (error) {
+    return String(value || '')
+  }
+}
+
+function getRouteFromLocation() {
+  if (typeof window === 'undefined') return { type: 'home' }
+  if (window.location.hash === '#admin') return { type: 'admin' }
+
+  const segments = window.location.pathname.split('/').filter(Boolean)
+  if (segments[0] === 'product' && segments[1]) return { type: 'product', slug: decodePathSegment(segments[1]) }
+  if (segments[0] === 'category' && segments[1]) return { type: 'category', slug: decodePathSegment(segments[1]) }
+
+  const params = new URLSearchParams(window.location.search)
+  const product = params.get('product')
+  if (product) return { type: 'product', slug: product }
+  const category = params.get('category')
+  if (category) return { type: 'category', slug: category }
+
+  return { type: 'home' }
+}
+
+function productUrl(product) {
+  const slug = product?.slug || product?.id
+  return slug ? `/product/${encodePathSegment(slug)}` : '/'
+}
+
+function categoryUrl(slug) {
+  return slug && slug !== 'home' ? `/category/${encodePathSegment(slug)}` : '/'
+}
+
+function pushAppUrl(url) {
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  if (current !== url) window.history.pushState('', document.title, url)
+}
+
 const DEFAULT_STORE_SETTINGS = {
   store_name: 'Flormar Tunisie',
   hero_title_fr: 'Votre beaute,\nvotre style',
@@ -1597,8 +1640,46 @@ export default function App() {
     loadCatalog()
   }, [])
 
+  useEffect(() => {
+    if (catalogLoading) return
+
+    const syncRoute = () => {
+      const route = getRouteFromLocation()
+
+      if (route.type === 'admin') {
+        setPage(adminToken ? 'admin-dashboard' : 'admin-login')
+        return
+      }
+
+      if (route.type === 'product') {
+        const product = products.find(item => [item.slug, item.id, item.legacyId].some(value => String(value || '') === String(route.slug)))
+        if (product) {
+          setSelectedProductId(product.id)
+          if (product.category) setActiveCat(product.category)
+          setPage('product')
+          return
+        }
+      }
+
+      setSelectedProductId('')
+
+      if (route.type === 'category') {
+        const category = categories.find(item => String(item.slug) === String(route.slug))
+        setActiveCat(category?.slug || route.slug)
+        setPage('category')
+        return
+      }
+
+      setPage('home')
+    }
+
+    syncRoute()
+    window.addEventListener('popstate', syncRoute)
+    return () => window.removeEventListener('popstate', syncRoute)
+  }, [catalogLoading, products, categories, adminToken])
+
   const navigate = (dest) => {
-    if (window.location.hash) window.history.pushState('', document.title, window.location.pathname + window.location.search)
+    pushAppUrl(categoryUrl(dest))
     setSelectedProductId('')
     if (dest === 'home') { setPage('home') }
     else { setActiveCat(dest); setPage('category') }
@@ -1607,7 +1688,7 @@ export default function App() {
 
   const openProduct = (product) => {
     if (!product) return
-    if (window.location.hash) window.history.pushState('', document.title, window.location.pathname + window.location.search)
+    pushAppUrl(productUrl(product))
     setSelectedProductId(product.id)
     if (product.category) setActiveCat(product.category)
     setPage('product')
@@ -1624,7 +1705,7 @@ export default function App() {
   const handleAdminLogout = () => {
     localStorage.removeItem(ADMIN_TOKEN_KEY)
     setAdminToken('')
-    if (window.location.hash) window.history.pushState('', document.title, window.location.pathname + window.location.search)
+    pushAppUrl('/')
     setPage('home')
   }
 
