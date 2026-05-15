@@ -57,6 +57,10 @@ function pushAppUrl(url) {
   if (current !== url) window.history.pushState('', document.title, url)
 }
 
+function routeNeedsCatalog(route) {
+  return route?.type === 'product' || route?.type === 'category'
+}
+
 const DEFAULT_STORE_SETTINGS = {
   store_name: 'Flormar Tunisie',
   hero_title_fr: 'Votre beaute,\nvotre style',
@@ -1584,11 +1588,25 @@ function Footer({ lang, t, navigate, isMobile, categories, settings }) {
   )
 }
 
+function RouteLoading({ isMobile }) {
+  return (
+    <main style={{ minHeight: '70vh', padding: isMobile ? '150px 18px 70px' : '170px 24px 90px', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontFamily: "'Montserrat',sans-serif" }}>
+      <div style={{ width: '100%', maxWidth: 760 }}>
+        <div style={{ height: isMobile ? 280 : 360, borderRadius: 14, background: '#f8f0f3', marginBottom: 18 }} />
+        <div style={{ height: 16, width: '58%', borderRadius: 20, background: '#f0e2e7', marginBottom: 12 }} />
+        <div style={{ height: 12, width: '84%', borderRadius: 20, background: '#f4e9ed', marginBottom: 8 }} />
+        <div style={{ height: 12, width: '68%', borderRadius: 20, background: '#f4e9ed' }} />
+      </div>
+    </main>
+  )
+}
+
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
-export default function App() {
+export default function App({ initialRoute = null }) {
+  const startingRoute = initialRoute?.type ? initialRoute : { type: 'home' }
   const [lang, setLang] = useState('fr')
-  const [page, setPage] = useState('home')
-  const [activeCat, setActiveCat] = useState('face')
+  const [page, setPage] = useState(startingRoute.type === 'category' ? 'category' : 'home')
+  const [activeCat, setActiveCat] = useState(startingRoute.type === 'category' ? startingRoute.slug : 'face')
   const [cart, setCart] = useState([])
   const [adminToken, setAdminToken] = useState('')
   const [products, setProducts] = useState([])
@@ -1597,6 +1615,7 @@ export default function App() {
   const [selectedProductId, setSelectedProductId] = useState('')
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [catalogError, setCatalogError] = useState('')
+  const [routeLoading, setRouteLoading] = useState(routeNeedsCatalog(startingRoute))
   const isMobile = useIsMobile()
   const t = T[lang]
   const selectedProduct = products.find(product => String(product.id) === String(selectedProductId)) || null
@@ -1647,6 +1666,7 @@ export default function App() {
       const route = getRouteFromLocation()
 
       if (route.type === 'admin') {
+        setRouteLoading(false)
         setPage(adminToken ? 'admin-dashboard' : 'admin-login')
         return
       }
@@ -1657,6 +1677,7 @@ export default function App() {
           setSelectedProductId(product.id)
           if (product.category) setActiveCat(product.category)
           setPage('product')
+          setRouteLoading(false)
           return
         }
       }
@@ -1667,10 +1688,12 @@ export default function App() {
         const category = categories.find(item => String(item.slug) === String(route.slug))
         setActiveCat(category?.slug || route.slug)
         setPage('category')
+        setRouteLoading(false)
         return
       }
 
       setPage('home')
+      setRouteLoading(false)
     }
 
     syncRoute()
@@ -1680,6 +1703,7 @@ export default function App() {
 
   const navigate = (dest) => {
     pushAppUrl(categoryUrl(dest))
+    setRouteLoading(false)
     setSelectedProductId('')
     if (dest === 'home') { setPage('home') }
     else { setActiveCat(dest); setPage('category') }
@@ -1689,6 +1713,7 @@ export default function App() {
   const openProduct = (product) => {
     if (!product) return
     pushAppUrl(productUrl(product))
+    setRouteLoading(false)
     setSelectedProductId(product.id)
     if (product.category) setActiveCat(product.category)
     setPage('product')
@@ -1698,6 +1723,7 @@ export default function App() {
   const handleAdminLogin = (token) => {
     localStorage.setItem(ADMIN_TOKEN_KEY, token)
     setAdminToken(token)
+    setRouteLoading(false)
     window.history.pushState('', document.title, '#admin')
     setPage('admin-dashboard')
   }
@@ -1705,6 +1731,7 @@ export default function App() {
   const handleAdminLogout = () => {
     localStorage.removeItem(ADMIN_TOKEN_KEY)
     setAdminToken('')
+    setRouteLoading(false)
     pushAppUrl('/')
     setPage('home')
   }
@@ -1712,12 +1739,30 @@ export default function App() {
   const handleAdminAuthError = () => {
     localStorage.removeItem(ADMIN_TOKEN_KEY)
     setAdminToken('')
+    setRouteLoading(false)
     setPage('admin-login')
   }
 
   const openAdmin = () => {
+    setRouteLoading(false)
     window.history.pushState('', document.title, '#admin')
     setPage(adminToken ? 'admin-dashboard' : 'admin-login')
+  }
+
+  if (routeLoading) {
+    return (
+      <>
+        <Head>
+          <title>Flormar Tunisie - Maquillage & Soins</title>
+          <meta name="description" content="Boutique officielle Flormar Tunisie. Livraison gratuite, paiement a la livraison." />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+        </Head>
+        <div style={{ minHeight: '100vh', background: '#fdfaf9' }}>
+          <Header lang={lang} setLang={setLang} t={t} cart={cart} setCart={setCart} activeCat={activeCat} navigate={navigate} setPage={setPage} openAdmin={openAdmin} isMobile={isMobile} categories={categories} settings={settings} />
+          <RouteLoading isMobile={isMobile} />
+        </div>
+      </>
+    )
   }
 
   if (page === 'admin-login') {
