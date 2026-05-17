@@ -567,7 +567,8 @@ function ProductDetailPage({ product, lang, t, navigate, setCart, setPage, isMob
   const reference = selectedVariant?.sku || safeProduct.sku || ''
 
   useEffect(() => {
-    setSelectedVariantId('')
+    const firstActive = variants.find(v => v.isActive === true) || variants[0]
+    setSelectedVariantId(firstActive ? firstActive.id : '')
     setShadeError('')
     setAdded(false)
     setActiveImage(gallery[0] || '')
