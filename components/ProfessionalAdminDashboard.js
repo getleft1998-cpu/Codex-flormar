@@ -92,7 +92,7 @@ function phoneDigits(value = '') {
 
 function emptyProductForm(categories = []) {
   return {
-    id: '',
+    id: null,
     category: categories[0]?.slug || 'face',
     slug: '',
     sku: '',
@@ -113,7 +113,7 @@ function emptyProductForm(categories = []) {
 
 function emptyVariantForm(productId = '') {
   return {
-    id: '',
+    id: null,
     product_id: productId,
     shade_name: '',
     sku: '',
@@ -397,7 +397,6 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Product save failed.')
       setProductForm(emptyProductForm(categories))
-      await load(true)
       showToast('Product saved.')
     } catch (saveError) {
       setError(saveError.message)
@@ -405,9 +404,13 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
     } finally {
       setSaving('')
     }
+    load(true).catch(() => {})
   }
 
   const editProduct = product => {
+    if (productForm.id && productForm.id !== product.id) {
+      if (!window.confirm('Discard unsaved changes to the current product?')) return
+    }
     setActiveSection('products')
     setProductForm({
       id: product.id,
@@ -438,7 +441,6 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       const res = await adminFetch(`/api/admin-products?id=${encodeURIComponent(product.id)}`, { method: 'DELETE' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Product delete failed.')
-      await load(true)
       showToast('Product deactivated.')
     } catch (deleteError) {
       setError(deleteError.message)
@@ -446,6 +448,7 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
     } finally {
       setSaving('')
     }
+    load(true).catch(() => {})
   }
 
   const saveVariant = async () => {
@@ -463,7 +466,6 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       const productId = String(payload.product_id)
       setVariantProductId(productId)
       setVariantForm(emptyVariantForm(productId))
-      await load(true)
       showToast('Shade saved.')
     } catch (saveError) {
       setError(saveError.message)
@@ -471,6 +473,7 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
     } finally {
       setSaving('')
     }
+    load(true).catch(() => {})
   }
 
   const editVariant = variant => {
@@ -498,7 +501,6 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Shade delete failed.')
       setVariantForm(emptyVariantForm(variantProductId))
-      await load(true)
       showToast('Shade deactivated.')
     } catch (deleteError) {
       setError(deleteError.message)
@@ -506,6 +508,7 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
     } finally {
       setSaving('')
     }
+    load(true).catch(() => {})
   }
 
   const saveCategory = async () => {
@@ -520,7 +523,6 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Category save failed.')
       setCategoryForm(emptyCategoryForm())
-      await load(true)
       showToast('Category saved.')
     } catch (saveError) {
       setError(saveError.message)
@@ -528,6 +530,7 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
     } finally {
       setSaving('')
     }
+    load(true).catch(() => {})
   }
 
   const editCategory = category => {
@@ -601,7 +604,6 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Order update failed.')
-      await load(true)
       showToast('Order updated.')
     } catch (updateError) {
       setError(updateError.message)
@@ -609,6 +611,7 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
     } finally {
       setSaving('')
     }
+    load(true).catch(() => {})
   }
 
   const filteredProducts = products.filter(product => {
@@ -708,7 +711,7 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       <Panel
         title={productForm.id ? 'Edit product' : 'Add product'}
         subtitle="Name, price, sale price, category, images, stock, active status, and featured placement."
-        action={productForm.id ? <Button variant="neutral" onClick={() => setProductForm(emptyProductForm(categories))}>New product</Button> : null}
+        action={productForm.id ? <Button variant="neutral" onClick={() => setProductForm(emptyProductForm(categories))}>Cancel</Button> : null}
       >
         <Grid columns={4} isMobile={isMobile}>
           <Field label="Category">
