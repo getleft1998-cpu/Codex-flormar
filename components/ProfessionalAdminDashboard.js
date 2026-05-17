@@ -100,8 +100,8 @@ function emptyProductForm(categories = []) {
     name_ar: '',
     description_fr: '',
     description_ar: '',
-    price: '',
-    sale_price: '',
+    price: null,
+    sale_price: null,
     stock_quantity: 0,
     image_url: '',
     tag: '',
@@ -119,10 +119,39 @@ function emptyVariantForm(productId = '') {
     sku: '',
     color_hex: '',
     image_url: '',
-    price: '',
+    price: null,
     stock_quantity: 0,
     is_active: true,
     display_order: 0,
+  }
+}
+
+function toNumberOrNull(v) {
+  if (v === '' || v === null || v === undefined) return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function buildProductPayload(form) {
+  return {
+    ...form,
+    id: form.id || null,
+    price: toNumberOrNull(form.price),
+    sale_price: toNumberOrNull(form.sale_price),
+    stock_quantity: toNumberOrNull(form.stock_quantity) ?? 0,
+    display_order: toNumberOrNull(form.display_order) ?? 0,
+  }
+}
+
+function buildVariantPayload(form, productId) {
+  const pid = productId ?? form.product_id
+  return {
+    ...form,
+    id: form.id || null,
+    product_id: toNumberOrNull(pid),
+    price: toNumberOrNull(form.price),
+    stock_quantity: toNumberOrNull(form.stock_quantity) ?? 0,
+    display_order: toNumberOrNull(form.display_order) ?? 0,
   }
 }
 
@@ -392,9 +421,10 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
       const res = await adminFetch('/api/admin-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productForm),
+        body: JSON.stringify(buildProductPayload(productForm)),
       })
       const data = await res.json().catch(() => ({}))
+      console.log('[save] status=', res.status, 'response=', data)
       if (!res.ok) throw new Error(data.error || 'Product save failed.')
       setProductForm(emptyProductForm(categories))
       showToast('Product saved.')
@@ -455,13 +485,14 @@ export default function ProfessionalAdminDashboard({ lang, t, onLogout, token, o
     setSaving('variant')
     setError('')
     try {
-      const payload = { ...variantForm, product_id: variantProductId || variantForm.product_id }
+      const payload = buildVariantPayload(variantForm, variantProductId)
       const res = await adminFetch('/api/admin-variants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => ({}))
+      console.log('[save] status=', res.status, 'response=', data)
       if (!res.ok) throw new Error(data.error || 'Shade save failed.')
       const productId = String(payload.product_id)
       setVariantProductId(productId)
